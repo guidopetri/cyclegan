@@ -6,40 +6,37 @@ the network.
 """
 
 import torch
+import torch.nn.functional as F
 
 
-class AdversarialLoss(torch.nn.Module):
-    
-    def __init__(self):
-        super().__init__()
+def adversarial_loss(discriminator, output, target):
+    first = torch.log(discriminator(target))
+    second = torch.log(1 - discriminator(output))
+
+    return first + second
 
 
-    def forward(self, discriminator, output, target):
-
-        first = torch.log(discriminator(target))
-        second = torch.log(1 - discriminator(output))
-
-        return first + second
+def cycle_loss(G, F, x, y):
+    first = F.l1_loss(F(G(x)), x)
+    second = F.l1_loss(G(F(y)), y)
+    return first + second
 
 
-class CycleLoss(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.l1_loss = torch.nn.L1Loss()
-
-    def forward(self, output, target):
-        return self.l1_loss(output, target)
+def identity_loss(G, F, x, y):
+    first = F.l1_loss(G(y), y)
+    second = F.l1_loss(F(x), x)
+    return first + second
 
 
-class IdentityLoss(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
+def cyclegan_loss(D_g, D_f, G, F, x, y):
 
-        self.l1_loss = torch.nn.L1Loss()
+    gan_loss_1 = adversarial_loss(D_g, G(x), y)
+    gan_loss_2 = adversarial_loss(D_f, F(y), x)
 
-    def forward(self, output, target):
-        return self.l1_loss(output, target)
+    cycle = cycle_loss(G, F, x, y)
+    identity = identity_loss(G, F, x, y)
+
+    return gan_loss_1 + gan_loss_2 + cycle + identity
 
 
 class ResidualBlock(torch.nn.Module):
