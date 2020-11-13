@@ -60,10 +60,14 @@ class ResidualBlock(torch.nn.Module):
         self.conv1 = torch.nn.Conv2d(self.size,
                                      self.size,
                                      kernel_size=3,
+                                     padding=1,
+                                     padding_mode='reflect',
                                      )
         self.conv2 = torch.nn.Conv2d(self.size,
                                      self.size,
                                      kernel_size=3,
+                                     padding=1,
+                                     padding_mode='reflect',
                                      )
 
         self.activation = torch.nn.ReLU()
