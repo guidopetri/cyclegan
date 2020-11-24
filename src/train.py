@@ -178,9 +178,6 @@ adversarial_loss = torch.nn.MSELoss().to(device)
 fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
 
-# input args
-args = parser.parse_args(f'--n-epochs 10'.split())
-
 # training loop
 for epoch in range(0, args.n_epochs):
     progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
