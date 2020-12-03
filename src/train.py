@@ -49,7 +49,7 @@ except OSError:
     pass
 
 try:
-    os.makedirs(os.path.join("weights", args.dataset))
+    os.makedirs(os.path.join(args.out, args.dataset, "weights"))
 except OSError:
     pass
 
@@ -303,17 +303,17 @@ for epoch in range(0, args.n_epochs):
                               normalize=True)
     
     # save weights
-    torch.save(g_AB.state_dict(), f"weights/{args.dataset}/g_AB_epoch_{epoch}.pth")
-    torch.save(g_BA.state_dict(), f"weights/{args.dataset}/g_BA_epoch_{epoch}.pth")
-    torch.save(d_A.state_dict(), f"weights/{args.dataset}/d_A_epoch_{epoch}.pth")
-    torch.save(d_B.state_dict(), f"weights/{args.dataset}/d_B_epoch_{epoch}.pth")
+    torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/weights/g_AB_epoch_{epoch}.pth")
+    torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/weights/g_BA_epoch_{epoch}.pth")
+    torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/weights/d_A_epoch_{epoch}.pth")
+    torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/weights/d_B_epoch_{epoch}.pth")
 
     # Update learning rates
     g_lr_scheduler.step()
     d_lr_scheduler.step()
 
 # save final weights
-torch.save(g_AB.state_dict(), f"weights/{args.dataset}/g_AB_epoch_{epoch}.pth")
-torch.save(g_BA.state_dict(), f"weights/{args.dataset}/g_BA_epoch_{epoch}.pth")
-torch.save(d_A.state_dict(), f"weights/{args.dataset}/d_A_epoch_{epoch}.pth")
-torch.save(d_B.state_dict(), f"weights/{args.dataset}/d_B_epoch_{epoch}.pth")
+torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/weights/g_AB_epoch_{epoch}.pth")
+torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/weights/g_BA_epoch_{epoch}.pth")
+torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/weights/d_A_epoch_{epoch}.pth")
+torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/weights/d_B_epoch_{epoch}.pth")
