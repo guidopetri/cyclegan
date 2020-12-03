@@ -158,10 +158,12 @@ class PatchGAN(torch.nn.Module):
         self.norm_512 = torch.nn.InstanceNorm2d(num_features=512)
 
         # produce 1-dimensional output
+        # this is a 5x5 output when input is 128x128 in the default
+        # implementation, so we need to convert to a single value
 
         self.conv_final = torch.nn.Conv2d(512,
                                           1,
-                                          kernel_size=2,
+                                          kernel_size=6,
                                           )
 
         # sigmoid at the end, according to https://arxiv.org/pdf/1611.07004.pdf
@@ -203,7 +205,7 @@ if __name__ == '__main__':
 
     model = PatchGAN()
 
-    t = torch.rand(size=(5, 3, 70, 70))
+    t = torch.rand(size=(5, 3, 128, 128))
 
     output = model(t)
 
