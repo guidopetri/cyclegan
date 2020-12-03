@@ -39,6 +39,7 @@ parser.add_argument("--cuda", action="store_true")
 parser.add_argument("--log-step", type=int, default=100, help="frequency to log progress")
 parser.add_argument("--print-freq", type=int, default=100, help="frequency to print images")
 parser.add_argument("--manualSeed", type=int, help="seed for training")
+parser.add_argument("--verbose", action="store_true")
 args = parser.parse_args()
 
 unique_dir = f'{args.n_epochs}{args.batch_size}{args.lr}{args.image_size}'
@@ -183,8 +184,11 @@ fake_B_buffer = ReplayBuffer()
 
 # training loop
 for epoch in range(0, args.n_epochs):
-    progress_bar = tqdm(enumerate(dataloader), total=len(dataloader))
-    for i, data in progress_bar:
+    if args.verbose:
+        enumerator = tqdm(enumerate(dataloader), total=len(dataloader))
+    else:
+        enumerator = enumerate(dataloader)
+    for i, data in enumerator:
         # get images
         real_img_A = data["A"].to(device)
         real_img_B = data["B"].to(device)
@@ -278,13 +282,14 @@ for epoch in range(0, args.n_epochs):
         optimizer_d.step()
 
         # Update progress bar
-        progress_bar.set_description(
-            f"[{epoch}/{args.n_epochs - 1}][{i}/{len(dataloader) - 1}] "
-            f"Loss_D: {(dis_A_loss + dis_B_loss).item():.4f} "
-            f"Loss_G: {gen_loss.item():.4f} "
-            f"Loss_G_identity: {(loss_identity_A + loss_identity_B).item():.4f} "
-            f"loss_G_GAN: {(gan_loss_AB + gan_loss_BA).item():.4f} "
-            f"loss_G_cycle: {(cycle_loss_ABA + cycle_loss_BAB).item():.4f}")
+        if args.verbose:
+            enumerator.set_description(
+                f"[{epoch}/{args.n_epochs - 1}][{i}/{len(dataloader) - 1}] "
+                f"Loss_D: {(dis_A_loss + dis_B_loss).item():.4f} "
+                f"Loss_G: {gen_loss.item():.4f} "
+                f"Loss_G_identity: {(loss_identity_A + loss_identity_B).item():.4f} "
+                f"loss_G_GAN: {(gan_loss_AB + gan_loss_BA).item():.4f} "
+                f"loss_G_cycle: {(cycle_loss_ABA + cycle_loss_BAB).item():.4f}")
         
         # save output images
         if i % args.print_freq == 0:
