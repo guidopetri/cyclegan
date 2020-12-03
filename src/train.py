@@ -51,7 +51,7 @@ except OSError:
     pass
 
 try:
-    os.makedirs(os.path.join(args.out, args.dataset, "weights"))
+    os.makedirs(os.path.join(args.out, args.dataset, unique_dir, "weights"))
 except OSError:
     pass
 
