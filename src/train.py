@@ -41,10 +41,12 @@ parser.add_argument("--print-freq", type=int, default=100, help="frequency to pr
 parser.add_argument("--manualSeed", type=int, help="seed for training")
 args = parser.parse_args()
 
+unique_dir = args.n_epochs + args.batch_size + args.lr + args.image_size
+
 # create directories for outputs
 try:
-    os.makedirs(os.path.join(args.out, args.dataset, "A"))
-    os.makedirs(os.path.join(args.out, args.dataset, "B"))
+    os.makedirs(os.path.join(args.out, args.dataset, unique_dir, "A"))
+    os.makedirs(os.path.join(args.out, args.dataset, unique_dir, "B"))
 except OSError:
     pass
 
@@ -286,34 +288,34 @@ for epoch in range(0, args.n_epochs):
         
         # save output images
         if i % args.print_freq == 0:
-            vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/A/real_samples_{epoch}.png",
+            vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/{unique_dir}/A/real_samples_{epoch}.png",
                               normalize=True)
             vutils.save_image(real_img_B,
-                              f"{args.out}/{args.dataset}/B/real_samples_{epoch}.png",
+                              f"{args.out}/{args.dataset}/{unique_dir}/B/real_samples_{epoch}.png",
                               normalize=True)
 
             fake_img_A = 0.5 * (g_BA(real_img_B).data + 1.0)
             fake_img_B = 0.5 * (g_AB(real_img_A).data + 1.0)
 
             vutils.save_image(fake_img_A.detach(),
-                              f"{args.out}/{args.dataset}/A/fake_samples_epoch_{epoch}.png",
+                              f"{args.out}/{args.dataset}/{unique_dir}/A/fake_samples_epoch_{epoch}.png",
                               normalize=True)
             vutils.save_image(fake_img_B.detach(),
-                              f"{args.out}/{args.dataset}/B/fake_samples_epoch_{epoch}.png",
+                              f"{args.out}/{args.dataset}/{unique_dir}/B/fake_samples_epoch_{epoch}.png",
                               normalize=True)
     
     # save weights
-    torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/weights/g_AB_epoch_{epoch}.pth")
-    torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/weights/g_BA_epoch_{epoch}.pth")
-    torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/weights/d_A_epoch_{epoch}.pth")
-    torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/weights/d_B_epoch_{epoch}.pth")
+    torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_AB_epoch_{epoch}.pth")
+    torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_BA_epoch_{epoch}.pth")
+    torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_A_epoch_{epoch}.pth")
+    torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_B_epoch_{epoch}.pth")
 
     # Update learning rates
     g_lr_scheduler.step()
     d_lr_scheduler.step()
 
 # save final weights
-torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/weights/g_AB_epoch_{epoch}.pth")
-torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/weights/g_BA_epoch_{epoch}.pth")
-torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/weights/d_A_epoch_{epoch}.pth")
-torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/weights/d_B_epoch_{epoch}.pth")
+torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_AB_epoch_{epoch}.pth")
+torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_BA_epoch_{epoch}.pth")
+torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_A_epoch_{epoch}.pth")
+torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_B_epoch_{epoch}.pth")
