@@ -191,7 +191,7 @@ class PatchGAN(torch.nn.Module):
 
         x = self.sigmoid(x)
 
-        return x.squeeze()
+        return x.flatten().squeeze()
 
 
 if __name__ == '__main__':
