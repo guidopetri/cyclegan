@@ -41,7 +41,7 @@ parser.add_argument("--print-freq", type=int, default=100, help="frequency to pr
 parser.add_argument("--manualSeed", type=int, help="seed for training")
 args = parser.parse_args()
 
-unique_dir = args.n_epochs + args.batch_size + args.lr + args.image_size
+unique_dir = f'{args.n_epochs}{args.batch_size}{args.lr}{args.image_size}'
 
 # create directories for outputs
 try:
