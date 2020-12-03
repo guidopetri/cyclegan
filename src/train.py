@@ -38,6 +38,7 @@ parser.add_argument("--out", type=str, default="./output", help="output path")
 parser.add_argument("--cuda", action="store_true")
 parser.add_argument("--log-step", type=int, default=100, help="frequency to log progress")
 parser.add_argument("--print-freq", type=int, default=100, help="frequency to print images")
+parser.add_argument("--manualSeed", type=int, help="seed for training")
 args = parser.parse_args()
 
 # create directories for outputs
@@ -285,10 +286,10 @@ for epoch in range(0, args.n_epochs):
         
         # save output images
         if i % args.print_freq == 0:
-            vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/A/real_samples.png",
+            vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/A/real_samples_{epoch}.png",
                               normalize=True)
             vutils.save_image(real_img_B,
-                              f"{args.out}/{args.dataset}/B/real_samples.png",
+                              f"{args.out}/{args.dataset}/B/real_samples_{epoch}.png",
                               normalize=True)
 
             fake_img_A = 0.5 * (g_BA(real_img_B).data + 1.0)
