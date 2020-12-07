@@ -24,25 +24,43 @@ from tqdm import tqdm
 import torchvision.utils as vutils
 
 
-## TODO: add arguments for the paths to weights for each model if continuing or using pre-trained
 # argparser
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataroot", type=str, default="../datasets", help="path to folder containing datasets")
 parser.add_argument("--dataset", type=str, default="human2anime", help="name of dataset (default: 'human2anime')")
 parser.add_argument("--n-epochs", type=int, default=200, help="total number of training epochs")
-parser.add_argument('--decay-epoch', type=int, default=100, help="epoch to start linearly decaying learning rate")
+parser.add_argument("--decay-epoch", type=int, default=100, help="epoch to start linearly decaying learning rate")
+parser.add_argument("--image-size", type=int, default=256, help='pixel-size of the image')
 parser.add_argument("-b", "--batch-size", type=int, default=1, help="batch size")
 parser.add_argument("--lr", type=float, default=0.0002, help="learning rate")
-parser.add_argument("--image-size", type=int, default=128, help="image size")
 parser.add_argument("--out", type=str, default="./output", help="output path")
 parser.add_argument("--cuda", action="store_true")
-parser.add_argument("--log-step", type=int, default=100, help="frequency to log progress")
-parser.add_argument("--print-freq", type=int, default=100, help="frequency to print images")
+parser.add_argument("--input_nc", type=int, default=3, help='number of channels of input data')
+parser.add_argument("--output_nc", type=int, default=3, help='number of channels of output data')
+parser.add_argument("--log-freq", type=int, default=200, help='frequency of printing losses to stdout')
+parser.add_argument("--visdom-freq", type=int, default=1000, help='frequency of showing training results in visdom')
+parser.add_argument("--save-freq", type=int, default=1000, help="frequency to save images")
+parser.add_argument("--visdom", type=utils.str2bool, nargs='?', const=True, default=False,
+                    help='true/false value indicating whether to use visdom')
+parser.add_argument("--save-images", type=utils.str2bool, nargs='?', const=True, default=True,
+                    help='true/false value indicating whether to save images generated during training')
+parser.add_argument("--verbose", type=utils.str2bool, nargs='?', const=True, default=True,
+                    help='true/false value indicating whether to use tqdm')
+parser.add_argument("--log", type=utils.str2bool, nargs='?', const=True, default=False,
+                    help='true/false value indicating whether to log losses during training if not using tqdm')
+parser.add_argument("--name", type=str, help='the unique directory name for each experiment')
+parser.add_argument("--checkpoints_dir", type=str, default='./checkpoints', help='models are saved here')
 parser.add_argument("--manualSeed", type=int, help="seed for training")
-parser.add_argument("--verbose", action="store_true")
 args = parser.parse_args()
 
-unique_dir = f'{args.n_epochs}{args.batch_size}{args.lr}{args.image_size}'
+# unique dir for saving outputs and weights
+if args.name is None:
+    unique_dir = f'{args.n_epochs}{args.batch_size}{args.lr}{args.image_size}'
+else:
+    unique_dir = args.name
+
+print(f'Experiment name: {unique_dir}')
+print(f'Start visdom server: {args.visdom}')
 
 # create directories for outputs
 try:
@@ -52,9 +70,16 @@ except OSError:
     pass
 
 try:
-    os.makedirs(os.path.join(args.out, args.dataset, unique_dir, "weights"))
+    os.makedirs(os.path.join("weights", args.dataset, unique_dir))
 except OSError:
     pass
+
+# set random seed
+if args.manualSeed is None:
+    args.manualSeed = random.randint(1, 10000)
+print("Random Seed: ", args.manualSeed)
+random.seed(args.manualSeed)
+torch.manual_seed(args.manualSeed)
 
 # custom dataset class
 class ImageDataset(Dataset):
@@ -80,10 +105,11 @@ class ImageDataset(Dataset):
 
 # define transformations
 data_transform = transforms.Compose([
-                    transforms.Resize(int(128 * 1.12), Image.BICUBIC),
-                    transforms.RandomCrop(128),
+                    transforms.Resize(int(args.image_size * 1.12), Image.BICUBIC),
+                    transforms.RandomCrop(args.image_size),
                     transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor()])
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
 
 # create dataset
 dataset = ImageDataset(root=os.path.join(args.dataroot, args.dataset),
@@ -92,59 +118,7 @@ dataset = ImageDataset(root=os.path.join(args.dataroot, args.dataset),
 
 # create dataloader (note: pin_memory=True makes transferring samples to GPU faster)
 dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True)
-
-def init_weights(net, init_type='normal', gain=0.02):
-    def init_func(m):
-        classname = m.__class__.__name__
-        if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
-            init.normal(m.weight.data, 0.0, gain)
-            if hasattr(m, 'bias') and m.bias is not None:
-                init.constant(m.bias.data, 0.0)
-        elif classname.find('BatchNorm2d') != -1:
-            init.normal(m.weight.data, 1.0, gain)
-            init.constant(m.bias.data, 0.0)
-
-    print('Network initialized with weights sampled from N(0,0.02).')
-    net.apply(init_func)
-
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-    elif classname.find("BatchNorm") != -1:
-        torch.nn.init.normal_(m.weight, 1.0, 0.02)
-        torch.nn.init.zeros_(m.bias)
-        
-class LambdaLR():
-    def __init__(self, n_epochs, offset, decay_epoch):
-        self.n_epochs = n_epochs
-        self.offset = offset
-        self.decay_epoch = decay_epoch
-
-    def step(self, epoch):
-        return 1.0 - max(0, epoch + self.offset - self.decay_epoch)/(self.n_epochs - self.decay_epoch)
-
-class ReplayBuffer():
-    def __init__(self, max_size=50):
-        assert (max_size > 0), "Empty buffer"
-        self.max_size = max_size
-        self.data = []
-
-    def push_and_pop(self, data):
-        to_return = []
-        for element in data.data:
-            element = torch.unsqueeze(element, 0)
-            if len(self.data) < self.max_size:
-                self.data.append(element)
-                to_return.append(element)
-            else:
-                if random.uniform(0, 1) > 0.5:
-                    i = random.randint(0, self.max_size - 1)
-                    to_return.append(self.data[i].clone())
-                    self.data[i] = element
-                else:
-                    to_return.append(element)
-        return torch.cat(to_return)
+print(f'Length of Dataloader: {len(dataloader)}')
 
 # set device to cuda if available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -156,10 +130,10 @@ d_A = model.PatchGAN().to(device)
 d_B = model.PatchGAN().to(device)
 
 # initialize weights      
-g_AB.apply(weights_init)
-g_BA.apply(weights_init)
-d_A.apply(weights_init)
-d_B.apply(weights_init)
+g_AB.apply(utils.weights_init)
+g_BA.apply(utils.weights_init)
+d_A.apply(utils.weights_init)
+d_B.apply(utils.weights_init)
 
 ## TODO: add code to load state dicts if continuing training with weights
 
@@ -170,8 +144,8 @@ optimizer_d = torch.optim.Adam(itertools.chain(d_A.parameters(), d_B.parameters(
                                lr=args.lr, betas=(0.5, 0.999))
 
 # learning rate schedulers
-g_lr_scheduler = lr_scheduler.LambdaLR(optimizer_g, lr_lambda=LambdaLR(args.n_epochs, 0, args.decay_epoch).step)
-d_lr_scheduler = lr_scheduler.LambdaLR(optimizer_d, lr_lambda=LambdaLR(args.n_epochs, 0, args.decay_epoch).step)
+g_lr_scheduler = lr_scheduler.LambdaLR(optimizer_g, lr_lambda=utils.LambdaLR(args.n_epochs, 0, args.decay_epoch).step)
+d_lr_scheduler = lr_scheduler.LambdaLR(optimizer_d, lr_lambda=utils.LambdaLR(args.n_epochs, 0, args.decay_epoch).step)
 
 # loss functions
 cycle_loss = torch.nn.L1Loss().to(device)
@@ -179,15 +153,21 @@ identity_loss = torch.nn.L1Loss().to(device)
 adversarial_loss = torch.nn.MSELoss().to(device)
 
 # image buffers
-fake_A_buffer = ReplayBuffer()
-fake_B_buffer = ReplayBuffer()
+fake_A_buffer = utils.ReplayBuffer()
+fake_B_buffer = utils.ReplayBuffer()
+
+# Logger Image Plots
+if args.visdom:
+    logger = utils.Logger(args.n_epochs, len(dataloader))
 
 # training loop
 for epoch in range(0, args.n_epochs):
+    # if args.verbose is True, enable tqdm progress bar 
     if args.verbose:
         enumerator = tqdm(enumerate(dataloader), total=len(dataloader))
     else:
-        enumerator = enumerate(dataloader)
+        enumerator = enumerate(dataloader)  
+        
     for i, data in enumerator:
         # get images
         real_img_A = data["A"].to(device)
@@ -281,8 +261,8 @@ for epoch in range(0, args.n_epochs):
         ## Update discriminator weights
         optimizer_d.step()
 
-        # Update progress bar
-        if args.verbose:
+        # Update tqdm progress bar, or print to screen
+        if args.verbose:            
             enumerator.set_description(
                 f"[{epoch}/{args.n_epochs - 1}][{i}/{len(dataloader) - 1}] "
                 f"Loss_D: {(dis_A_loss + dis_B_loss).item():.4f} "
@@ -290,37 +270,50 @@ for epoch in range(0, args.n_epochs):
                 f"Loss_G_identity: {(loss_identity_A + loss_identity_B).item():.4f} "
                 f"loss_G_GAN: {(gan_loss_AB + gan_loss_BA).item():.4f} "
                 f"loss_G_cycle: {(cycle_loss_ABA + cycle_loss_BAB).item():.4f}")
+        elif args.log:
+            if i % args.log_freq == 0:
+                print(f"[{epoch}/{args.n_epochs - 1}][{i}/{len(dataloader) - 1}]"
+                      f"Loss_D: {(dis_A_loss + dis_B_loss).item():.4f} "
+                      f"Loss_G: {gen_loss.item():.4f} "
+                      f"Loss_G_identity: {(loss_identity_A + loss_identity_B).item():.4f} "
+                      f"loss_G_GAN: {(gan_loss_AB + gan_loss_BA).item():.4f} "
+                      f"loss_G_cycle: {(cycle_loss_ABA + cycle_loss_BAB).item():.4f}")
         
         # save output images
-        if i % args.print_freq == 0:
-            vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/{unique_dir}/A/real_samples_{epoch}.png",
-                              normalize=True)
-            vutils.save_image(real_img_B,
-                              f"{args.out}/{args.dataset}/{unique_dir}/B/real_samples_{epoch}.png",
-                              normalize=True)
+        if args.save_images:
+            if i % args.save_freq == 0:
+                vutils.save_image(real_img_A, f"{args.out}/{args.dataset}/{unique_dir}/A/real_samples_{epoch}.png",
+                                  normalize=True)
+                vutils.save_image(real_img_B, f"{args.out}/{args.dataset}/{unique_dir}/B/real_samples_{epoch}.png",
+                                  normalize=True)
 
-            fake_img_A = 0.5 * (g_BA(real_img_B).data + 1.0)
-            fake_img_B = 0.5 * (g_AB(real_img_A).data + 1.0)
+                fake_img_A = 0.5 * (g_BA(real_img_B).data + 1.0)
+                fake_img_B = 0.5 * (g_AB(real_img_A).data + 1.0)
 
-            vutils.save_image(fake_img_A.detach(),
-                              f"{args.out}/{args.dataset}/{unique_dir}/A/fake_samples_epoch_{epoch}.png",
-                              normalize=True)
-            vutils.save_image(fake_img_B.detach(),
-                              f"{args.out}/{args.dataset}/{unique_dir}/B/fake_samples_epoch_{epoch}.png",
-                              normalize=True)
+                vutils.save_image(fake_img_A.detach(), f"{args.out}/{args.dataset}/{unique_dir}/A/fake_samples_epoch_{epoch}.png",
+                                  normalize=True)
+                vutils.save_image(fake_img_B.detach(), f"{args.out}/{args.dataset}/{unique_dir}/B/fake_samples_epoch_{epoch}.png",
+                                  normalize=True)
+            
+        # Visdom updates
+        loss_dict = {'G_loss': gen_loss, 'G_Idt_loss': (loss_identity_A + loss_identity_B), 'G_GAN_loss': (gan_loss_AB + gan_loss_BA),
+                        'G_cycle_loss': (cycle_loss_ABA + cycle_loss_BAB), 'D_loss': (dis_A_loss + dis_B_loss)}
+        if args.visdom:
+            if i % args.visdom_freq == 0:
+                logger.log(loss_dict, images={'real_A': real_img_A, 'real_B': real_img_B, 'fake_A': fake_img_A, 'fake_B': fake_img_B})
     
     # save weights
-    torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_AB_epoch_{epoch}.pth")
-    torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_BA_epoch_{epoch}.pth")
-    torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_A_epoch_{epoch}.pth")
-    torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_B_epoch_{epoch}.pth")
+    torch.save(g_AB.state_dict(), f"weights/{args.dataset}/{unique_dir}/g_AB_epoch_{epoch}.pth")
+    torch.save(g_BA.state_dict(), f"weights/{args.dataset}/{unique_dir}/g_BA_epoch_{epoch}.pth")
+    torch.save(d_A.state_dict(), f"weights/{args.dataset}/{unique_dir}/d_A_epoch_{epoch}.pth")
+    torch.save(d_B.state_dict(), f"weights/{args.dataset}/{unique_dir}/d_B_epoch_{epoch}.pth")
 
     # Update learning rates
     g_lr_scheduler.step()
     d_lr_scheduler.step()
 
 # save final weights
-torch.save(g_AB.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_AB_epoch_{epoch}.pth")
-torch.save(g_BA.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/g_BA_epoch_{epoch}.pth")
-torch.save(d_A.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_A_epoch_{epoch}.pth")
-torch.save(d_B.state_dict(), f"{args.out}/{args.dataset}/{unique_dir}/weights/d_B_epoch_{epoch}.pth")
+torch.save(g_AB.state_dict(), f"weights/{args.dataset}/{unique_dir}/g_AB_epoch_{epoch}.pth")
+torch.save(g_BA.state_dict(), f"weights/{args.dataset}/{unique_dir}/g_BA_epoch_{epoch}.pth")
+torch.save(d_A.state_dict(), f"weights/{args.dataset}/{unique_dir}/d_A_epoch_{epoch}.pth")
+torch.save(d_B.state_dict(), f"weights/{args.dataset}/{unique_dir}/d_B_epoch_{epoch}.pth")
