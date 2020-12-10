@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from utils import cyclegan_loss
@@ -323,7 +324,7 @@ if __name__ == '__main__':
 
     model = PatchGAN()
 
-    t = torch.rand(size=(5, 3, 128, 128))
+    t = torch.rand(size=(5, 3, 32, 32))
 
     output = model(t)
 

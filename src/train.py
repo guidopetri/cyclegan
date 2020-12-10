@@ -194,11 +194,17 @@ for epoch in range(0, args.n_epochs):
         ## GAN losses
         # GAN loss d_A(g_A(A))
         fake_img_A = g_BA(real_img_B)
-        fake_output_A = d_A(fake_img_A)
+        random_patch_w, random_patch_h = torch.randint(low=0, high=args.image_size - 32, size=(2,))
+        # create a patch from the fake image
+        fake_img_patch = fake_img_A[:, :, random_patch_w: random_patch_w + 32, random_patch_h: random_patch_h + 32]
+        fake_output_A = d_A(fake_img_patch)
         gan_loss_BA = adversarial_loss(fake_output_A, real_label)
         # GAN loss d_B(d_B(B))
         fake_img_B = g_AB(real_img_A)
-        fake_output_B = d_B(fake_img_B)
+        random_patch_w, random_patch_h = torch.randint(low=0, high=args.image_size - 32, size=(2,))
+        # create a patch from the fake image
+        fake_img_patch = fake_img_B[:, :, random_patch_w: random_patch_w + 32, random_patch_h: random_patch_h + 32]
+        fake_output_B = d_B(fake_img_patch)
         gan_loss_AB = adversarial_loss(fake_output_B, real_label)
 
         ## Cycle losses
