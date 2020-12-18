@@ -84,7 +84,7 @@ class LambdaLR():
         return 1.0 - max(0, epoch + self.offset - self.decay_epoch)/(self.n_epochs - self.decay_epoch)
 
     
-class ReplayBuffer():
+class ImageBuffer():
     def __init__(self, max_size=50):
         assert (max_size > 0), "Empty buffer"
         self.max_size = max_size
