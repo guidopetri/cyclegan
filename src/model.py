@@ -32,58 +32,104 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
         return x + self.block(x)
 
-    
+
 class CycleGAN(nn.Module):
 
     # original network is:
     # c7s1-64,d128,d256,R256,R256,R256,
     # R256,R256,R256,u128,u64,c7s1-3
 
-    def __init__(self):
+    def __init__(self, residual_blocks=9):
         super(CycleGAN, self).__init__()
 
-        self.main = nn.Sequential(           
-            # initial conv block
-            nn.ReflectionPad2d(3),
-            nn.Conv2d(3, 64, 7),
-            nn.InstanceNorm2d(64),
-            nn.ReLU(inplace=True),
-            
-            # downsampling layers
-            nn.Conv2d(64, 128, 3, stride=2, padding=1),
-            nn.InstanceNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, 3, stride=2, padding=1),
-            nn.InstanceNorm2d(256),
-            nn.ReLU(inplace=True),
-            
-            # residual blocks
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            ResidualBlock(256),
-            
-            # upsampling layers
-            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(64),
-            nn.ReLU(inplace=True),
-            
-            # output layer
-            nn.ReflectionPad2d(3),
-            nn.Conv2d(64, 3, 7),
-            nn.Tanh()
-        )
+        # initial conv block
+        main = [nn.ReflectionPad2d(3),
+                nn.Conv2d(3, 64, 7),
+                nn.InstanceNorm2d(64),
+                nn.ReLU(inplace=True)]
 
-    def forward(self, x):     
+        # downsampling layers
+        main += [nn.Conv2d(64, 128, 3, stride=2, padding=1),
+                 nn.InstanceNorm2d(128),
+                 nn.ReLU(inplace=True),
+                 nn.Conv2d(128, 256, 3, stride=2, padding=1),
+                 nn.InstanceNorm2d(256),
+                 nn.ReLU(inplace=True)]
+
+        # residual blocks
+        for _ in range(residual_blocks):
+            main += [ResidualBlock(256)]
+
+        # upsampling layers
+        main += [nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
+                 nn.InstanceNorm2d(128),
+                 nn.ReLU(inplace=True),
+                 nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+                 nn.InstanceNorm2d(64),
+                 nn.ReLU(inplace=True)]
+
+        # output layer
+        main += [nn.ReflectionPad2d(3),
+                 nn.Conv2d(64, 3, 7),
+                 nn.Tanh()]
+
+        self.main = nn.Sequential(*main)
+
+    def forward(self, x):
         return self.main(x)
+
+
+# class CycleGAN(nn.Module):
+
+#     # original network is:
+#     # c7s1-64,d128,d256,R256,R256,R256,
+#     # R256,R256,R256,u128,u64,c7s1-3
+
+#     def __init__(self):
+#         super(CycleGAN, self).__init__()
+
+#         self.main = nn.Sequential(
+#             # initial conv block
+#             nn.ReflectionPad2d(3),
+#             nn.Conv2d(3, 64, 7),
+#             nn.InstanceNorm2d(64),
+#             nn.ReLU(inplace=True),
+
+#             # downsampling layers
+#             nn.Conv2d(64, 128, 3, stride=2, padding=1),
+#             nn.InstanceNorm2d(128),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(128, 256, 3, stride=2, padding=1),
+#             nn.InstanceNorm2d(256),
+#             nn.ReLU(inplace=True),
+
+#             # residual blocks
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+#             ResidualBlock(256),
+
+#             # upsampling layers
+#             nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
+#             nn.InstanceNorm2d(128),
+#             nn.ReLU(inplace=True),
+#             nn.ConvTranspose2d(128, 64, 3, stride=2, padding=1, output_padding=1),
+#             nn.InstanceNorm2d(64),
+#             nn.ReLU(inplace=True),
+
+#             # output layer
+#             nn.ReflectionPad2d(3),
+#             nn.Conv2d(64, 3, 7),
+#             nn.Tanh()
+#         )
+
+#     def forward(self, x):
+#         return self.main(x)
 
 
 class PatchGAN(nn.Module):
@@ -117,7 +163,15 @@ class PatchGAN(nn.Module):
     def forward(self, x):
         x = self.model(x)
         return F.avg_pool2d(x, x.size()[2:]).view(x.size()[0], -1)
-    
+
+
+
+
+
+
+### Architecture based on mathematical formulation in original CycleGAN paper ###
+#################################################################################
+
 # import torch
 # from utils import ResidualBlock, cyclegan_loss
 
@@ -201,7 +255,7 @@ class PatchGAN(nn.Module):
 #         self.norm_3 = torch.nn.InstanceNorm2d(num_features=3)
 
 #     def forward(self, x):
-        
+
 #         x = self.conv1(x)
 #         x = self.norm_64(x)
 #         x = self.activation(x)
@@ -242,7 +296,7 @@ class PatchGAN(nn.Module):
 #         super().__init__()
 
 #         self.activation = torch.nn.LeakyReLU(negative_slope=0.2)
-        
+
 #         # C64
 #         self.conv1 = torch.nn.Conv2d(3,
 #                                      64,
