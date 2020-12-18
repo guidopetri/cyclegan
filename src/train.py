@@ -54,7 +54,6 @@ parser.add_argument("--log", type=utils.str2bool, nargs='?', const=True, default
 parser.add_argument("--save-last-only", type=utils.str2bool, nargs='?', const=True, default=True,
                     help='true/false value indicating whether to only save latest weights')
 parser.add_argument("--name", type=str, help='the unique directory name for each experiment')
-parser.add_argument("--checkpoints_dir", type=str, default='./checkpoints', help='models are saved here')
 parser.add_argument("--manualSeed", type=int, help="seed for training")
 args = parser.parse_args()
 
@@ -163,8 +162,8 @@ identity_loss = torch.nn.L1Loss().to(device)
 adversarial_loss = torch.nn.MSELoss().to(device)
 
 # image buffers
-fake_A_buffer = utils.ReplayBuffer()
-fake_B_buffer = utils.ReplayBuffer()
+fake_A_buffer = utils.ImageBuffer()
+fake_B_buffer = utils.ImageBuffer()
 
 # Logger Image Plots
 if args.visdom:
