@@ -1,7 +1,7 @@
 # cyclegan
 
 ### Overview
-This repository contains a PyTorch reimplementation of [CycleGAN](https://arxiv.org/abs/1703.10593).
+This repository contains a PyTorch reimplementation of [CycleGAN](https://arxiv.org/abs/1703.10593), and was used to transform human faces into anime faces.
 
 ### Installation
 
