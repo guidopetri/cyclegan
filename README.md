@@ -51,13 +51,13 @@ $ python3 train.py --dataset human2anime --name experiment1
 If you want to load pre-trained weights or resume from a checkpoint, simply add the epoch to resume from:
 
 ```bash
-# Example: human2anime for epoch 100
-$ python3 train.py --dataset horse2zebra --name experiment1 --starting-epoch 100
+# Example: human2anime dataset, experiment1 for epoch 100
+$ python3 train.py --dataset human2anime --name experiment1 --starting-epoch 100
 ```
 
 ### Test Example
 
 ```bash
 $ cd src/
-$ python3 test.py --dataset horse2zebra --name experiment1
+$ python3 test.py --dataset human2anime --name experiment1
 ```
