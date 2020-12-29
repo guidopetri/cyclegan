@@ -1,4 +1,4 @@
-name: cv
+name: cyclegan
 channels:
   - pytorch
   - plotly
@@ -162,4 +162,3 @@ dependencies:
     - future==0.18.2
     - install==1.3.4
     - opencv-python==4.4.0.46
-prefix: /home/ross/anaconda3/envs/cv
